@@ -15,6 +15,7 @@ const { check, validationResult } = require("express-validator");
 
 router.get('/me', auth, async(req, res) => {
     try {
+        // @ts-ignore
         const profile = await  Profile.findOne({ user: req.user.id }).populate(
             'user',
             ['name', 'avatar']
@@ -22,7 +23,7 @@ router.get('/me', auth, async(req, res) => {
         if (!profile)
         {
             return res.status(400).json({
-                msg: 'There is no profile for this user'
+                msg: ' Profile not found'
             }
             );
         }
@@ -30,8 +31,13 @@ router.get('/me', auth, async(req, res) => {
 
     } catch (err) {
         console.log(err.message);
-        res.status(500).send('Server error')
+        if(err.kind == 'ObjectId') { 
+        return res.status(400).json({msg: ' Profile not found'} );
     } 
+    res.status(500).send('Server error')
+
+        }
+       
 });
 
 // @route       POST api/profile
@@ -39,6 +45,7 @@ router.get('/me', auth, async(req, res) => {
 // @access      Private
 
 router.post('/', [auth,
+    // @ts-ignore
     [
     check('status', 'Status is required')
         .not()
@@ -67,6 +74,7 @@ async (req, res) => {
             instagram,
             linkedin
         } = req.body;
+        
         //Build profile object
         const profileFields = {};
         profileFields.user = req.user.id;
@@ -79,6 +87,7 @@ async (req, res) => {
         if (skills) {
             profileFields.skills = skills.split(',').map(skill => skill.trim());
         }
+        
         
     //Build Social Object
     profileFields.social = {}
@@ -101,9 +110,10 @@ async (req, res) => {
                 { new: true });
             return res.json(profile);
        }
+
        // Create
         profile = new Profile(profileFields);
-        await Profile.save();
+        await profile.save();
         res.json(profile);
    } catch (err) {
     console.log(err.message);
@@ -111,6 +121,120 @@ async (req, res) => {
    }
     }
 );
+
+// @route       GET api/profile
+// @description Get all profile
+// @access      Public
+
+router.get('/', async (req,res) =>{
+    try {
+        const profiles = await Profile.find().populate('user', ['name','avatar']);
+        res.json(profiles);
+        
+    } catch (err) {
+        console.log(err.message);
+        res.status(500).send('Server Error');
+        
+    }
+})
+
+
+// @route       GET api/profile/user/:user_id
+// @description Get profile by user ID 
+// @access      Public
+
+router.get('/user/:user_id', async (req,res) =>{
+    try {
+        const profile = await Profile.findOne({user: req.params.user_id}).populate('user', ['name','avatar']);
+        if(!profile) return res.status(400).json({msg:'Profile not found'});
+        res.json(profile);
+        
+    } catch (err) {
+        console.log(err.message);
+        if(err.kind == 'ObjectId') return res.status(400).json({msg:'Profile not found'});
+        res.status(500).send('Server Error');
+        
+    }
+})
+
+
+// @route       DELETE api/profile
+// @description Delete profile, user & posts
+// @access      Private
+
+router.delete('/', auth, async(req, res) => {
+    try {
+        // @todo -remove users posts
+
+        // Remove Profile
+        await  Profile.findOneAndRemove({ user: req.user.id });
+        res.json({msg:'Profile deleted'});
+        // Remove User
+
+        await  User.findOneAndRemove({ _id: req.user.id });
+
+        res.json({msg:'User deleted'});
+
+    } catch (err) {
+        console.log(err.message);
+        res.status(500).send('Server error')
+
+        }
+       
+});
+
+// @route       PUT api/profile/experience
+// @description Add profile experience
+// @access      Private
+
+router.put('/experience',[auth], 
+[check('title', 'Title is required').not().isEmpty(),
+check('company', 'company is required').not().isEmpty(),
+check('from', 'From Date is required').not().isEmpty()
+
+] ,
+
+async (req,res) => {
+    const errors = validationResult(req);
+    if(!errors) return res.status(400).json({errors:errors.array()});
+  const  {
+      title,
+      company,
+      location,
+      from,
+      to,
+      current,
+      description
+  } = req.body;
+
+  const newExp ={
+    title,
+    company,
+    location,
+    from,
+    to,
+    current,
+    description
+  }
+
+  try {
+    const profile = await Profile.findOne({user: req.params.user_id}).populate('user', ['name','avatar']);
+    
+    profile.experience.unshift(newExp);
+    await profile.save();
+    res.json(profile);
+
+      
+  } catch (err) {
+    console.log(err.message);
+    res.status(500).send('Server error')
+      
+  }
+
+});
+
+
+
 
 
 module.exports = router;
