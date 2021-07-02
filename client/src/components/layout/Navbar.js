@@ -5,9 +5,11 @@ import PropTypes from 'prop-types';
 import { logout } from '../../actions/auth.action';
 
 const Navbar = ({ auth: { isAuthenticated, loading }, logout }) => {
-  
   const authLinks = (
     <ul>
+      <li>
+        <Link to='/profiles'>Developers</Link>
+      </li>
       <li><Link to='/dashboard'>
       <i className="fas fa-user"></i> <span className="hide-sm">Dashboard</span></Link></li>
       <li>
@@ -19,13 +21,14 @@ const Navbar = ({ auth: { isAuthenticated, loading }, logout }) => {
          
       </ul>
   );
-
   const guestLinks = (
     <ul>
-          <li><a to='#!'>Developers</a></li>
+       <li>
+        <Link to='/profiles'>Developers</Link>
+      </li>
           <li><Link to='/register'>Register</Link></li>
           <li><Link to='/login'>Login</Link></li>
-        </ul>
+     </ul>
   );
 
     return (
@@ -47,4 +50,4 @@ const mapStateToProps = state => ({
   auth: state.auth
 });
 
-export default connect(mapStateToProps, {logout})(Navbar)
+export default connect(mapStateToProps, { logout })(Navbar);
